@@ -36,7 +36,7 @@ From the sketch and the fabricator's proposal email:
   - Two EA 40x40x5 angles between the rear uprights, with the toe leg at the top pointing back so no ledge holds water.
   - Both angles are the same part (item 7, 2 off), each with two round-ended 14 x 40 slots on the gauge line. The slots give ±13 horizontal adjustment.
 - **Tray:**
-  - Two-part 2.0 sheet. Item 8 is the base, back and 15 front lip in one blank. Item 9 is the two tapered side plates, each with a bottom return flange.
+  - Two-part 2.0 sheet. Item 8 is the base, back (folded up) and a 15 front lip (folded down) in one blank. The lip hangs 3 clear in front of the shelf rail and legs, so the tub or bag slides over the front edge without catching. Item 9 is the two tapered side plates, each with a bottom return flange.
   - The sides are riveted and sealed to the base; there are no fusion welds on the sheet.
   - Hemmed top edges.
   - Four Ø10 drain holes, placed clear of the frame members.

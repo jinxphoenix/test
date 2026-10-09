@@ -87,7 +87,10 @@ TRAY_D = D - SHS  # tray stops at the front face of the rear uprights
 TRAY_SIDE_H_BACK = 200.0
 TRAY_SIDE_H_FRONT = 80.0
 TRAY_BACK_H = 200.0
-TRAY_LIP_H = 15.0  # front upstand
+TRAY_LIP_H = 15.0  # front lip, turned DOWN so the tub slides over the edge
+LIP_GAP = 3.0  # lip clear of the front shelf rail / front legs
+TRAY_Y0 = -(LIP_GAP + SHEET_T)  # tray front edge, ahead of the frame
+TRAY_CLEAR_D = TRAY_D - SHEET_T - TRAY_Y0  # front edge to inside of back
 TRAY_FLANGE = 15.0  # side plate bottom flange, lapped on the base
 DRAIN_D = 10.0
 DRAIN_XY = [(x, 60.0) for x in (-200.0, -70.0, 70.0, 200.0)]
@@ -248,23 +251,23 @@ def build():
         angles.append(a)
     add("7", "Catch box mounting angle (slotted)", "EA 40x40x5.0 Duragal", RAIL_L_X, *angles)
 
-    # tray 9: base + back + front lip, one blank with two folds
-    base = plate(W, TRAY_D, SHEET_T, XL, 0, SHELF_FRAME_TOP)
+    # tray 8: base + back (folded up) + front lip (folded down), one blank
+    base = plate(W, TRAY_D - TRAY_Y0, SHEET_T, XL, TRAY_Y0, SHELF_FRAME_TOP)
     for x, y in DRAIN_XY:
         base -= Pos(x, y, SHELF_FRAME_TOP - 1) * Cylinder(DRAIN_D / 2, SHEET_T + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
     back = plate(W, SHEET_T, TRAY_BACK_H, XL, TRAY_D - SHEET_T, PLATFORM_Z)
-    lip = plate(W - 2 * (SHEET_T + TRAY_FLANGE), SHEET_T, TRAY_LIP_H, XL + SHEET_T + TRAY_FLANGE, 0, PLATFORM_Z)
+    lip = plate(W, SHEET_T, TRAY_LIP_H - SHEET_T, XL, TRAY_Y0, PLATFORM_Z - TRAY_LIP_H)
     add("8", "Tray base, back & front lip", "2.0 galvanised sheet", None, base + back + lip)
 
-    # tray 10: tapered side plates with bottom return flange lapped on base
+    # tray 9: tapered side plates with bottom return flange lapped on base
     def side(x_plate, x_flange):
         pts = [
-            (0, PLATFORM_Z),
+            (TRAY_Y0, PLATFORM_Z),
             (TRAY_D - SHEET_T, PLATFORM_Z),
             (TRAY_D - SHEET_T, PLATFORM_Z + TRAY_SIDE_H_BACK),
-            (0, PLATFORM_Z + TRAY_SIDE_H_FRONT),
+            (TRAY_Y0, PLATFORM_Z + TRAY_SIDE_H_FRONT),
         ]
-        return sheet_poly_x(pts, x_plate) + plate(TRAY_FLANGE, TRAY_D - SHEET_T, SHEET_T, x_flange, 0, PLATFORM_Z)
+        return sheet_poly_x(pts, x_plate) + plate(TRAY_FLANGE, TRAY_D - SHEET_T - TRAY_Y0, SHEET_T, x_flange, TRAY_Y0, PLATFORM_Z)
 
     add(
         "9", "Tray side plate", "2.0 galvanised sheet", None,
@@ -341,7 +344,7 @@ def checks():
     out.append((gap >= HAND_GAP, f"hand gap each end {gap:.0f} mm (min {HAND_GAP:.0f}); W for min gap = {TUB_L + 2 * HAND_GAP + 2 * SHEET_T:.0f}"))
     out.append((HOLE_TOP_Z + EA_GAUGE <= H - CAP_T, f"upper angle heel {HOLE_TOP_Z + EA_GAUGE:.0f} below upright top {H:.0f}"))
     need = TUB_W - TUB_TAPER  # rim against back, base front edge must clear the lip
-    room = TRAY_D - 2 * SHEET_T
+    room = TRAY_CLEAR_D
     out.append((need <= room, f"tub rim-to-base-front {need:.0f} vs clear tray depth {room:.0f}"))
     clear = OUTLET_Z - (PLATFORM_Z + TUB_H)
     out.append((clear >= 100, f"drop from outlet to tub rim {clear:.0f} mm (min 100 for tub removal)"))

@@ -339,8 +339,8 @@ def sheet1(s: Sheet, items):
     s.dim(S(0, 0), S(m.D, 0), y0 - 10, "h")
     s.dim(S(m.D, 0), S(m.D_BASE, 0), y0 - 10, "h")
     s.dim(S(0, 0), S(m.D_BASE, 0), y0 - 19, "h", text=f"{m.D_BASE:.0f} OVERALL BASE")
-    s.dim(S(0, m.PLATFORM_Z), S(m.TRAY_D, m.PLATFORM_Z), S(0, m.PLATFORM_Z)[1] - 12, "h", text=f"{m.TRAY_D:.0f} TRAY")
-    s.dim(S(0, m.PLATFORM_Z), S(0, m.PLATFORM_Z + m.TRAY_SIDE_H_FRONT), S(0, 0)[0] - 8, "v", side_text="out")
+    s.dim(S(m.TRAY_Y0, m.PLATFORM_Z), S(m.TRAY_D, m.PLATFORM_Z), S(0, m.PLATFORM_Z)[1] - 12, "h", text=f"{m.TRAY_D - m.TRAY_Y0:.0f} TRAY")
+    s.dim(S(m.TRAY_Y0, m.PLATFORM_Z), S(m.TRAY_Y0, m.PLATFORM_Z + m.TRAY_SIDE_H_FRONT), S(m.TRAY_Y0, 0)[0] - 8, "v", side_text="out")
     s.dim(S(m.D, m.PLATFORM_Z), S(m.D, m.OUTLET_Z), xr + 8, "v", text="340 (REF)")
     s.dim(S(m.D, 0), S(m.D, m.STRUT_TOP_Z), xr + 16, "v", text=f"{m.STRUT_TOP_Z:.0f} STRUT")
     s.dim(S(m.D, 0), S(m.D, m.OUTLET_Z), xr + 24, "v", text=f"{m.OUTLET_Z:.0f} OUTLET (REF)")
@@ -382,7 +382,7 @@ def sheet1(s: Sheet, items):
         f"1. CATCH BOX BRACKETS: HORIZONTAL HOLE CRS (SKETCH \"31.5\", TAKEN AS {m.HOLE_PITCH_X:.0f}), VERTICAL",
         f"    CRS {m.HOLE_PITCH_Z:.0f}, STAND-OFF (ASSUMED {m.BOX_STANDOFF:.0f}) AND LOWER HOLE HEIGHT ABOVE OUTLET",
         f"    (ASSUMED {m.BRKT_LOW_ABOVE_OUTLET:.0f}). SLOT HEIGHTS AND UPRIGHT LENGTH FOLLOW FROM THESE.",
-        f"2. SAMPLE TUB SIZE (ASSUMED {m.TUB_L:.0f} x {m.TUB_W:.0f} x {m.TUB_H:.0f}). TRAY CLEAR {m.TRAY_CLEAR_W:.0f} x {m.TRAY_D - 2 * m.SHEET_T:.0f};",
+        f"2. SAMPLE TUB SIZE (ASSUMED {m.TUB_L:.0f} x {m.TUB_W:.0f} x {m.TUB_H:.0f}). TRAY CLEAR {m.TRAY_CLEAR_W:.0f} x {m.TRAY_CLEAR_D:.0f};",
         f"    {m.HAND_GAP:.0f} MIN HAND GAP EACH END NEEDS FRAME WIDTH = TUB LENGTH + {2 * m.HAND_GAP + 2 * m.SHEET_T:.0f}.",
         "3. GRATING BEARING BAR DIRECTION AT EACH LOCATION; 300 CLEAR BEHIND STAND FOR OUTRIGGER",
         "    AND CATCH BOX BOLT ACCESS.",
@@ -460,21 +460,23 @@ def sheet2(s: Sheet, items):
     TS = s.view(tray, "side", sc, (505, 400), uv0=(0, z0))
     s.dim(TF(-290, z0), TF(290, z0), TF(0, z0)[1] - 8, "h", text="580 O/A")
     s.dim(TF(-290, z0), TF(-290, z0 + m.TRAY_BACK_H), TF(-290, z0)[0] - 8, "v")
-    s.dim(TF(290, z0), TF(290, z0 + m.TRAY_LIP_H), TF(290, z0)[0] + 8, "v", side_text="out")
-    s.dim(TP(290, 0), TP(290, m.TRAY_D), TP(290, 0)[0] + 8, "v")
+    s.leader_note(TS(m.TRAY_Y0, z0 - 8), (TS(m.TRAY_Y0, 0)[0] + 10, TS(0, z0)[1] - 36),
+                  [f"{m.TRAY_LIP_H:.0f} LIP TURNED DOWN, {m.LIP_GAP:.0f} CLEAR OF FRAME"], h=2.2)
+    s.dim(TP(290, m.TRAY_Y0), TP(290, m.TRAY_D), TP(290, 0)[0] + 8, "v")
     for x, y in m.DRAIN_XY:
         c = TP(x, y)
         s.line((c[0] - 3, c[1]), (c[0] + 3, c[1]), layer="CBS-CENTRE")
         s.line((c[0], c[1] - 3), (c[0], c[1] + 3), layer="CBS-CENTRE")
     s.leader_note(TP(m.DRAIN_XY[-1][0], m.DRAIN_XY[-1][1]), (TP(290, 0)[0] + 20, TP(0, 200)[1]),
                   [f"4 x Ø{m.DRAIN_D:.0f} DRAIN", "Y = 60, X = ±70, ±200"])
-    s.dim(TS(0, z0), TS(0, z0 + m.TRAY_SIDE_H_FRONT), TS(0, z0)[0] - 7, "v", side_text="out")
+    s.dim(TS(m.TRAY_Y0, z0), TS(m.TRAY_Y0, z0 + m.TRAY_SIDE_H_FRONT), TS(m.TRAY_Y0, z0)[0] - 7, "v", side_text="out")
     s.dim(TS(m.TRAY_D, z0), TS(m.TRAY_D, z0 + m.TRAY_SIDE_H_BACK), TS(m.TRAY_D, z0)[0] + 7, "v")
-    s.dim(TS(0, z0), TS(m.TRAY_D, z0), TS(0, z0)[1] - 8, "h")
+    s.dim(TS(m.TRAY_Y0, z0), TS(m.TRAY_D, z0), TS(0, z0)[1] - 26, "h")
     s.text((TF(0, z0)[0] + 40, TF(0, z0)[1] - 22), "ITEMS 8 & 9 - SHELF TRAY  (SCALE 1:5)", h=3.5, bold=True)
     s.note((345, 345), [
         "TRAY CONSTRUCTION",
-        "ITEM 8: ONE BLANK, BASE + BACK (90°) + 15 FRONT LIP (90°), INSIDE BEND RADIUS 2.",
+        "ITEM 8: ONE BLANK, BACK FOLDED UP 90°, 15 FRONT LIP FOLDED DOWN 90°, INSIDE BEND RADIUS 2.",
+        f"LIP HANGS {m.LIP_GAP:.0f} CLEAR IN FRONT OF SHELF FRONT RAIL & LEGS; TUB SLIDES OVER FRONT EDGE.",
         "ITEM 9: 2 OFF TAPERED SIDES, 15 RETURN FLANGE FOLDED ALONG BOTTOM EDGE, LAPPED ON BASE.",
         "FIX SIDES TO BASE WITH 4 x Ø5 GALV BLIND RIVETS EACH + SEALANT; CORNERS SEALED.",
         "NO FUSION SEAM WELDS ON SHEET. SLOPED TOP EDGES 180° SAFE-EDGE HEM; FRONT TOP CORNERS R15.",
