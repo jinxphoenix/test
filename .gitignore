@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+# company title block template and outputs built on it (not for a public repo)
+catch_box_stand/template/
+catch_box_stand/output/a1/
