@@ -72,7 +72,7 @@ HOLE_PITCH_X = 315.0  # mounting hole centres, horizontal (sketch "31.5", MEASUR
 HOLE_BOT_Z = OUTLET_Z + BRKT_LOW_ABOVE_OUTLET
 HOLE_TOP_Z = HOLE_BOT_Z + HOLE_PITCH_Z
 SLOT_W = 14.0  # M12 bolts
-SLOT_L = 40.0  # horizontal slots / hang-on notch width, +/-13 adjustment
+SLOT_L = 40.0  # horizontal slots, +/-13 adjustment
 EA_GAUGE = 22.5  # hole centre from heel of angle
 
 # rear uprights stop just above the upper angle (heel is at the top)
@@ -238,15 +238,15 @@ def build():
     strut_len = max(e.length for e in s_l[0].edges() if abs(e.tangent_at(0).Z) > 0.5)  # long point
     add("6", f"Raking strut, ends cut {s_l[2]:.1f}°", "SHS 40x40x2.0 Duragal", strut_len, s_l[0], s_r[0])
 
-    # catch box mounting angles between rear uprights, face flush with uprights' front
-    up = ea_horizontal(RAIL_L_X, XL + SHS, D - SHS, HOLE_TOP_Z + EA_GAUGE)
-    for xs in (-HOLE_PITCH_X / 2, HOLE_PITCH_X / 2):  # open-top hang-on notches
-        up -= Pos(xs, D - SHS - 1, HOLE_TOP_Z - SLOT_W / 2) * Box(SLOT_L, EA + 2, EA, align=(Align.CENTER, Align.MIN, Align.MIN))
-    add("7", "Upper box angle (hang-on notches)", "EA 40x40x5.0 Duragal", RAIL_L_X, up)
-    lo = ea_horizontal(RAIL_L_X, XL + SHS, D - SHS, HOLE_BOT_Z + EA_GAUGE)
-    for xs in (-HOLE_PITCH_X / 2, HOLE_PITCH_X / 2):
-        lo -= slot_y_normal(xs, D - SHS - 1, HOLE_BOT_Z, EA_T + 2)
-    add("8", "Lower box angle (slotted)", "EA 40x40x5.0 Duragal", RAIL_L_X, lo)
+    # catch box mounting angles between rear uprights, face flush with uprights'
+    # front; upper and lower are the same part with two 14 x 40 slots
+    angles = []
+    for z_hole in (HOLE_TOP_Z, HOLE_BOT_Z):
+        a = ea_horizontal(RAIL_L_X, XL + SHS, D - SHS, z_hole + EA_GAUGE)
+        for xs in (-HOLE_PITCH_X / 2, HOLE_PITCH_X / 2):
+            a -= slot_y_normal(xs, D - SHS - 1, z_hole, EA_T + 2)
+        angles.append(a)
+    add("7", "Catch box mounting angle (slotted)", "EA 40x40x5.0 Duragal", RAIL_L_X, *angles)
 
     # tray 9: base + back + front lip, one blank with two folds
     base = plate(W, TRAY_D, SHEET_T, XL, 0, SHELF_FRAME_TOP)
@@ -254,7 +254,7 @@ def build():
         base -= Pos(x, y, SHELF_FRAME_TOP - 1) * Cylinder(DRAIN_D / 2, SHEET_T + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
     back = plate(W, SHEET_T, TRAY_BACK_H, XL, TRAY_D - SHEET_T, PLATFORM_Z)
     lip = plate(W - 2 * (SHEET_T + TRAY_FLANGE), SHEET_T, TRAY_LIP_H, XL + SHEET_T + TRAY_FLANGE, 0, PLATFORM_Z)
-    add("9", "Tray base, back & front lip", "2.0 galvanised sheet", None, base + back + lip)
+    add("8", "Tray base, back & front lip", "2.0 galvanised sheet", None, base + back + lip)
 
     # tray 10: tapered side plates with bottom return flange lapped on base
     def side(x_plate, x_flange):
@@ -267,7 +267,7 @@ def build():
         return sheet_poly_x(pts, x_plate) + plate(TRAY_FLANGE, TRAY_D - SHEET_T, SHEET_T, x_flange, 0, PLATFORM_Z)
 
     add(
-        "10", "Tray side plate", "2.0 galvanised sheet", None,
+        "9", "Tray side plate", "2.0 galvanised sheet", None,
         side(XL, XL + SHEET_T), side(XR - SHEET_T, XR - SHEET_T - TRAY_FLANGE),
     )
 
@@ -280,13 +280,13 @@ def build():
             p = plate(FOOT_X, FOOT_Y, FOOT_T, x0, y0, 0)
             p -= slot_z_normal(xs, y0 + FOOT_Y / 2, -1, FOOT_T + 2, FOOT_SLOT_L, FOOT_SLOT_W)
             feet.append(p)
-    add("11", "Foot plate, slotted", "PL 6 galv (HDG)", None, *feet)
+    add("10", "Foot plate, slotted", "PL 6 galv (HDG)", None, *feet)
 
     # 12 cap plates on open SHS ends
     caps = [plate(SHS, SHS, CAP_T, x0, D - SHS, H - CAP_T) for x0 in (XL, X_IN)]
     caps += [plate(SHS, SHS, CAP_T, x0, 0, SHELF_FRAME_TOP - CAP_T) for x0 in (XL, X_IN)]
     caps += [plate(SHS, CAP_T, SHS, x0, D_BASE - CAP_T, BASE_Z) for x0 in (XL, X_IN)]
-    add("12", "Cap plate 40x40", "PL 3 galv", None, *caps)
+    add("11", "Cap plate 40x40", "PL 3 galv", None, *caps)
 
     # 13 cable tie tabs, outboard face of right rear upright
     tabs = []
@@ -294,7 +294,7 @@ def build():
         t = plate(25, 25, 3, XR, D - SHS + 7.5, z)
         t -= Pos(XR + 15, D - SHS + 20, z - 1) * Cylinder(3.25, 5, align=(Align.CENTER, Align.CENTER, Align.MIN))
         tabs.append(t)
-    add("13", "Cable tie tab 25x25, Ø6.5 hole", "PL 3 galv", None, *tabs)
+    add("12", "Cable tie tab 25x25, Ø6.5 hole", "PL 3 galv", None, *tabs)
 
     return items
 

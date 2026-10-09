@@ -28,7 +28,7 @@ OUT = Path(__file__).parent / "output" / "a1"
 TEMPLATE_LAYOUT = "A1 TEMPLATE"
 TITLE_BLOCK = "AMMJOHN A1 TITLE BLOCK 2025-07-01"
 QA_BLOCK = "AJ QA"
-QA_LINES_LAYER = "G-ANNO-TTLB"  # checkbox lines drawn loose next to the QA stamp
+QA_LINES_LAYER = "G-ANNO-TTLB"  # QA stamp checkbox lines drawn loose in the template
 PAPER = (841.0, 594.0)
 
 DRG_PREFIX = "AJXXX-0000-ME-DWG-"  # project number to be assigned
@@ -86,16 +86,21 @@ def prepare_document(template_path):
             doc.layers.add(name, color=col, linetype=lt, lineweight=lw)
 
     tpl = doc.layouts.get(TEMPLATE_LAYOUT)
-    # remove the template's model viewport (paper-space viewport id 1 stays)
+    # remove the template's model viewport (paper-space viewport id 1 stays),
+    # the internal review (QA) stamp and its loose checkbox lines
     for e in list(tpl):
         if e.dxftype() == "VIEWPORT" and e.dxf.id != 1:
+            tpl.delete_entity(e)
+        elif e.dxftype() == "INSERT" and e.dxf.name == QA_BLOCK:
+            tpl.delete_entity(e)
+        elif e.dxftype() == "LINE" and e.dxf.layer == QA_LINES_LAYER:
             tpl.delete_entity(e)
     return doc
 
 
 def new_sheet_layout(doc, name, source=None):
     """First sheet: rename the template layout. Later sheets: copy the page
-    setup and title block / QA inserts from the source layout."""
+    setup and title block insert from the source layout."""
     if source is None:
         doc.layouts.rename(TEMPLATE_LAYOUT, name)
         return doc.layouts.get(name)
@@ -105,31 +110,19 @@ def new_sheet_layout(doc, name, source=None):
     for k, v in tpl.dxf_layout.dxfattribs().items():
         if k not in skip:
             lay.dxf_layout.dxf.set(k, v)
-    # copy title block and QA stamp inserts (with attribute values) and the
-    # loose QA checkbox lines
-    for e in tpl:
-        if e.dxftype() == "INSERT":
-            ref = lay.add_blockref(e.dxf.name, e.dxf.insert, dxfattribs={"layer": e.dxf.layer})
-            ref.add_auto_attribs({a.dxf.tag: a.dxf.text for a in e.attribs})
-        elif e.dxftype() == "LINE" and e.dxf.layer == QA_LINES_LAYER:
-            lay.add_line(e.dxf.start, e.dxf.end, dxfattribs={"layer": e.dxf.layer})
+    # copy the title block insert with its attribute values
+    for e in tpl.query("INSERT"):
+        ref = lay.add_blockref(e.dxf.name, e.dxf.insert, dxfattribs={"layer": e.dxf.layer})
+        ref.add_auto_attribs({a.dxf.tag: a.dxf.text for a in e.attribs})
     return lay
 
 
-def fill_title_block(lay, values, qa_insert):
+def fill_title_block(lay, values):
     for e in lay.query("INSERT"):
         if e.dxf.name == TITLE_BLOCK:
             for a in e.attribs:
                 if a.dxf.tag in values:
                     a.dxf.text = values[a.dxf.tag]
-        elif e.dxf.name == QA_BLOCK:
-            dx = qa_insert[0] - e.dxf.insert.x
-            dy = qa_insert[1] - e.dxf.insert.y
-            e.translate(dx, dy, 0)  # moves the insert and its attributes
-            for a in e.attribs:
-                a.dxf.text = "-"
-            for ln in lay.query(f'LINE[layer=="{QA_LINES_LAYER}"]'):
-                ln.translate(dx, dy, 0)
 
 
 # ======================================================================= sheet drawing API
@@ -330,11 +323,11 @@ def sheet1(s: Sheet, items):
     s.balloon(F(270, 700), (F(350, 0)[0] + 12, F(0, 700)[1]), "2")
     s.balloon(F(120, m.BASE_Z + 20), (F(150, 0)[0], F(0, 230)[1]), "3")
     s.balloon(F(-200, m.HOLE_TOP_Z + 10), (F(350, 0)[0] + 12, F(0, m.HOLE_TOP_Z + 60)[1]), "7")
-    s.balloon(F(200, m.HOLE_BOT_Z + 10), (F(350, 0)[0] + 12, F(0, m.HOLE_BOT_Z - 60)[1]), "8")
-    s.balloon(F(-150, m.PLATFORM_Z + 190), (F(350, 0)[0] + 12, F(0, m.PLATFORM_Z + 140)[1]), "9")
-    s.balloon(F(-289, m.PLATFORM_Z + 60), (xl - 40, F(0, m.PLATFORM_Z + 60)[1]), "10")
-    s.balloon(F(-320, 3), (xl - 40, F(0, 120)[1]), "11")
-    s.balloon(F(-270, m.H - 1), (xl - 40, F(0, m.H + 40)[1]), "12")
+    s.balloon(F(200, m.HOLE_BOT_Z + 10), (F(350, 0)[0] + 12, F(0, m.HOLE_BOT_Z - 60)[1]), "7")
+    s.balloon(F(-150, m.PLATFORM_Z + 190), (F(350, 0)[0] + 12, F(0, m.PLATFORM_Z + 140)[1]), "8")
+    s.balloon(F(-289, m.PLATFORM_Z + 60), (xl - 40, F(0, m.PLATFORM_Z + 60)[1]), "9")
+    s.balloon(F(-320, 3), (xl - 40, F(0, 120)[1]), "10")
+    s.balloon(F(-270, m.H - 1), (xl - 40, F(0, m.H + 40)[1]), "11")
     s.label((F(0, 0)[0], AREA[1] + 12), "FRONT VIEW", "SCALE 1:5")
 
     # --- right side view 1:5 (u = Y, front on the left)
@@ -356,7 +349,7 @@ def sheet1(s: Sheet, items):
     s.balloon(S(150, m.BASE_Z + 20), (S(150, 0)[0], S(0, 260)[1]), "4")
     s.balloon(S(400, m.BASE_Z + 20), (S(430, 0)[0], S(0, 260)[1]), "5")
     s.balloon(S(m.D + 60, 1000), (S(m.D + 160, 0)[0], S(0, 1000)[1]), "6")
-    s.balloon(S(m.D + 2, 1250), (S(m.D + 160, 0)[0], S(0, 1250)[1]), "13")
+    s.balloon(S(m.D + 2, 1250), (S(m.D + 160, 0)[0], S(0, 1250)[1]), "12")
     s.text((S(130, 0)[0], S(0, m.BOX_TOP_Z)[1] + 6), "CATCH BOX & TUB SHOWN", h=2.5)
     s.text((S(130, 0)[0], S(0, m.BOX_TOP_Z)[1] + 2), "CHAIN-DOTTED, NOT SUPPLIED", h=2.5)
     s.label((S(m.D_BASE / 2, 0)[0], AREA[1] + 12), "RIGHT SIDE VIEW", "SCALE 1:5")
@@ -405,7 +398,7 @@ def sheet2(s: Sheet, items):
 
     # --- plan on base frame 1:5 (all members with underside at base level)
     base = Compound([p for it in items for p in it.parts
-                     if it.mark in ("1", "2", "3", "4", "5", "6", "11", "12") and p.bounding_box().min.Z < m.BASE_Z + 1])
+                     if it.mark in ("1", "2", "3", "4", "5", "6", "10", "11") and p.bounding_box().min.Z < m.BASE_Z + 1])
     bo = (110, 400)
     B = s.view(base, "plan", sc, bo, hidden=True)
     xs = m.XL - (m.FOOT_X - m.SHS) / 2
@@ -427,7 +420,7 @@ def sheet2(s: Sheet, items):
     # --- foot plate detail 1:2
     sc2 = 0.5
     s.cur_scale = sc2
-    foot = by_mark(items, "11").parts[0]
+    foot = by_mark(items, "10").parts[0]
     fx0, fy0 = m.XL - (m.FOOT_X - m.SHS), 0.0
     P = s.view(foot, "plan", sc2, (240, 478), uv0=(fx0, fy0))
     s.dim(P(fx0, fy0), P(fx0 + m.FOOT_X, fy0), P(0, fy0)[1] - 8, "h")
@@ -436,36 +429,31 @@ def sheet2(s: Sheet, items):
     s.leader_note(P(xs, fy0 + m.FOOT_Y / 2 + 13), (P(fx0 + m.FOOT_X, 0)[0] + 18, P(0, fy0 + m.FOOT_Y)[1] + 6),
                   ["SLOT 14 x 40", "(M12 FIXING)"])
     s.note((P(fx0 + 60, 0)[0] - 8, P(0, fy0 + 70)[1]), ["LEG / BASE", "RAIL OVER"], h=2.2)
-    s.text((P(fx0 + 50, 0)[0], P(0, fy0)[1] - 20), "ITEM 11 - FOOT PLATE, 6 OFF  (SCALE 1:2)", h=3.5, bold=True)
+    s.text((P(fx0 + 50, 0)[0], P(0, fy0)[1] - 20), "ITEM 10 - FOOT PLATE, 6 OFF  (SCALE 1:2)", h=3.5, bold=True)
 
-    # --- catch box angles: elevations 1:5 and end views 1:2
+    # --- catch box angle (2 off, identical): elevation 1:5 and end view 1:2
     s.cur_scale = sc
-    for k, (mark, zc, ytop) in enumerate((("7", m.HOLE_TOP_Z, 330), ("8", m.HOLE_BOT_Z, 270))):
-        ang = by_mark(items, mark).parts[0]
-        A = s.view(ang, "front", sc, (110, ytop), uv0=(0, zc), hidden=True)
-        s.dim(A(-250, zc + m.EA_GAUGE), A(250, zc + m.EA_GAUGE), A(0, zc)[1] + 15, "h")
-        s.dim(A(-m.HOLE_PITCH_X / 2, zc), A(m.HOLE_PITCH_X / 2, zc), A(0, zc)[1] + 9, "h",
-              text=f"{m.HOLE_PITCH_X:.0f} CRS")
-        s.dim(A(-250, zc), A(-m.HOLE_PITCH_X / 2, zc), A(0, zc)[1] - 9, "h", text=f"{250 - m.HOLE_PITCH_X / 2:.1f}")
-        if mark == "7":
-            s.leader_note(A(m.HOLE_PITCH_X / 2 + 20, zc + 5), (A(250, 0)[0] + 8, A(0, zc)[1] + 20),
-                          ["2 x OPEN-TOP HANG-ON NOTCH", "40 WIDE x 29.5 DEEP"])
-        else:
-            s.leader_note(A(m.HOLE_PITCH_X / 2 + 13, zc), (A(250, 0)[0] + 8, A(0, zc)[1] + 20),
-                          ["2 x SLOT 14 x 40"])
-        title = "ITEM 7 - UPPER BOX ANGLE" if mark == "7" else "ITEM 8 - LOWER BOX ANGLE"
-        s.text((A(0, 0)[0], A(0, zc)[1] - 20), title + "  (SCALE 1:5)", h=3.5, bold=True)
-        s.cur_scale = sc2
-        y0 = m.D - m.SHS
-        E = s.view(ang, "side", sc2, (275, ytop), uv0=(y0, zc), hidden=True)
-        s.dim(E(y0, zc), E(y0, zc + m.EA_GAUGE), E(y0, 0)[0] - 8, "v", text="22.5", side_text="out")
-        s.dim(E(y0, zc + m.EA_GAUGE), E(y0 + m.EA, zc + m.EA_GAUGE), E(0, zc + m.EA_GAUGE)[1] + 8, "h")
-        s.dim(E(y0 + m.EA, zc + m.EA_GAUGE - m.EA), E(y0 + m.EA, zc + m.EA_GAUGE), E(y0 + m.EA, 0)[0] + 8, "v")
-        s.text((E(y0 + 20, 0)[0], E(0, zc)[1] - 20), "END VIEW 1:2", h=3.5, bold=True)
-        s.cur_scale = sc
+    zc, ytop = m.HOLE_BOT_Z, 300
+    ang = by_mark(items, "7").parts[1]
+    A = s.view(ang, "front", sc, (110, ytop), uv0=(0, zc), hidden=True)
+    s.dim(A(-250, zc + m.EA_GAUGE), A(250, zc + m.EA_GAUGE), A(0, zc)[1] + 15, "h")
+    s.dim(A(-m.HOLE_PITCH_X / 2, zc), A(m.HOLE_PITCH_X / 2, zc), A(0, zc)[1] + 9, "h",
+          text=f"{m.HOLE_PITCH_X:.0f} SLOT CRS")
+    s.dim(A(-250, zc), A(-m.HOLE_PITCH_X / 2, zc), A(0, zc)[1] - 9, "h", text=f"{250 - m.HOLE_PITCH_X / 2:.1f}")
+    s.leader_note(A(m.HOLE_PITCH_X / 2 + 13, zc), (A(250, 0)[0] + 8, A(0, zc)[1] + 20),
+                  [f"2 x SLOT {m.SLOT_W:.0f} WIDE x {m.SLOT_L:.0f} LONG", "ROUND ENDS, ON GAUGE LINE"])
+    s.text((A(0, 0)[0], A(0, zc)[1] - 20), "ITEM 7 - CATCH BOX MOUNTING ANGLE, 2 OFF  (SCALE 1:5)", h=3.5, bold=True)
+    s.cur_scale = sc2
+    y0 = m.D - m.SHS
+    E = s.view(ang, "side", sc2, (275, ytop), uv0=(y0, zc), hidden=True)
+    s.dim(E(y0, zc), E(y0, zc + m.EA_GAUGE), E(y0, 0)[0] - 8, "v", text="22.5", side_text="out")
+    s.dim(E(y0, zc + m.EA_GAUGE), E(y0 + m.EA, zc + m.EA_GAUGE), E(0, zc + m.EA_GAUGE)[1] + 8, "h")
+    s.dim(E(y0 + m.EA, zc + m.EA_GAUGE - m.EA), E(y0 + m.EA, zc + m.EA_GAUGE), E(y0 + m.EA, 0)[0] + 8, "v")
+    s.text((E(y0 + 20, 0)[0], E(0, zc)[1] - 20), "END VIEW 1:2", h=3.5, bold=True)
+    s.cur_scale = sc
 
     # --- tray 1:5: front, plan above, side to right
-    tray = Compound(by_mark(items, "9").parts + by_mark(items, "10").parts)
+    tray = Compound(by_mark(items, "8").parts + by_mark(items, "9").parts)
     z0 = m.PLATFORM_Z
     TF = s.view(tray, "front", sc, (420, 400), uv0=(0, z0))
     TP = s.view(tray, "plan", sc, (420, 465), uv0=(0, 0), hidden=True)
@@ -483,11 +471,11 @@ def sheet2(s: Sheet, items):
     s.dim(TS(0, z0), TS(0, z0 + m.TRAY_SIDE_H_FRONT), TS(0, z0)[0] - 7, "v", side_text="out")
     s.dim(TS(m.TRAY_D, z0), TS(m.TRAY_D, z0 + m.TRAY_SIDE_H_BACK), TS(m.TRAY_D, z0)[0] + 7, "v")
     s.dim(TS(0, z0), TS(m.TRAY_D, z0), TS(0, z0)[1] - 8, "h")
-    s.text((TF(0, z0)[0] + 40, TF(0, z0)[1] - 22), "ITEMS 9 & 10 - SHELF TRAY  (SCALE 1:5)", h=3.5, bold=True)
+    s.text((TF(0, z0)[0] + 40, TF(0, z0)[1] - 22), "ITEMS 8 & 9 - SHELF TRAY  (SCALE 1:5)", h=3.5, bold=True)
     s.note((345, 345), [
         "TRAY CONSTRUCTION",
-        "ITEM 9: ONE BLANK, BASE + BACK (90°) + 15 FRONT LIP (90°), INSIDE BEND RADIUS 2.",
-        "ITEM 10: 2 OFF TAPERED SIDES, 15 RETURN FLANGE FOLDED ALONG BOTTOM EDGE, LAPPED ON BASE.",
+        "ITEM 8: ONE BLANK, BASE + BACK (90°) + 15 FRONT LIP (90°), INSIDE BEND RADIUS 2.",
+        "ITEM 9: 2 OFF TAPERED SIDES, 15 RETURN FLANGE FOLDED ALONG BOTTOM EDGE, LAPPED ON BASE.",
         "FIX SIDES TO BASE WITH 4 x Ø5 GALV BLIND RIVETS EACH + SEALANT; CORNERS SEALED.",
         "NO FUSION SEAM WELDS ON SHEET. SLOPED TOP EDGES 180° SAFE-EDGE HEM; FRONT TOP CORNERS R15.",
         "BACK PLATE: 2 x Ø5 RIVETS INTO EACH REAR UPRIGHT. BASE: 6 x M6 RIVNUTS INTO SHELF RAILS",
@@ -519,19 +507,19 @@ def sheet2(s: Sheet, items):
         "     ROUND (LEG NOT LESS THAN WALL). EA TO SHS 4 FW ALL ROUND. WELD WITH LOCAL FUME EXTRACTION (ZINC).",
         "4.  CORROSION: WIRE-WHEEL ALL WELDS, CUT ENDS, HOLES AND SHEET EDGES; ZINC-RICH COLD GALV TO AS/NZS 3750.9,",
         "     2 COATS, MIN 100 µm DFT. DURAGAL + COLD GALV: DESIGN LIFE APPROX. 10 YEARS IN C3 EXPOSURE.",
-        "5.  ALL OPEN SHS ENDS CAPPED: ITEM 12 PL 40x40x3 SEAL WELDED (UPRIGHT TOPS, FRONT LEG TOPS, OUTRIGGER ENDS).",
+        "5.  ALL OPEN SHS ENDS CAPPED: ITEM 11 PL 40x40x3 SEAL WELDED (UPRIGHT TOPS, FRONT LEG TOPS, OUTRIGGER ENDS).",
         "6.  BUILD SEQUENCE: SIDE FRAMES (LEG, UPRIGHT, SIDE RAILS, OUTRIGGER, STRUT) FLAT IN A TABLE JIG; JOIN WITH",
-        "     CROSS RAILS IN A SQUARING JIG; FIT ITEMS 7 & 8 BOLTED TO A SLOT TEMPLATE. BALANCE WELDS SIDE TO SIDE.",
+        "     CROSS RAILS IN A SQUARING JIG; FIT ITEM 7 ANGLES BOLTED TO A SLOT TEMPLATE. BALANCE WELDS SIDE TO SIDE.",
         "7.  TOLERANCES: FRAME 580 ±2, 300 ±2, DIAGONALS WITHIN 3, UPRIGHTS PLUMB WITHIN 2 OVER FULL HEIGHT.",
         "     DATUM A = UNDERSIDE OF FOOT PLATES. SLOT CENTRE HEIGHTS ±2 FROM A; 330 ±1 BETWEEN ROWS; 315 ±1.",
         "8.  STRUT ITEM 6: TOP END CUT TO SUIT UPRIGHT BACK FACE (LONG SNIPE), FILLET WELD ALL ROUND, SEAL.",
         "9.  CATCH BOX FIXING: 4 x M12 HDG 8.8/S BOLTS, HDG 50x50x5 SQUARE PLATE WASHERS OVER SLOTS, NYLOC NUTS,",
-        "     40 Nm, RE-CHECK 1 MONTH AFTER INSTALL. HANG BOX ON UPPER BOLTS, THEN FIT LOWER BOLTS.",
+        "     40 Nm, RE-CHECK 1 MONTH AFTER INSTALL. SUPPORT BOX ON A PROP WHILE FITTING BOLTS.",
         "10. GRATING FIXING: 6 x M12 HDG 8.8 BOLTS THROUGH FOOT SLOTS, HDG 100x50x6 CLAMP PLATE UNDER GRATING",
         "     SPANNING MIN 3 BEARING BARS, NYLOC NUTS. DESIGN TENSION 0.8 kN ULS PER FIXING. LOCATE NEAR A GRATING",
         "     SUPPORT; CONFIRM GRATING PANEL CLIPS. LEVEL ±2 WITH GALV SHIM PACKS UNDER FEET (8 PER STAND).",
         "11. SAMPLE HOSE AND SENSOR CABLE TO BE FLEXIBLE AND SUPPORTED INDEPENDENTLY; NO RIGID CONNECTION",
-        "     BETWEEN SAMPLER AND STAND. ROUTE SENSOR CABLE VIA ITEM 13 TABS, CLEAR OF TUB OPENING.",
+        "     BETWEEN SAMPLER AND STAND. ROUTE SENSOR CABLE VIA ITEM 12 TABS, CLEAR OF TUB OPENING.",
         "12. HARD-STAMP UNIT No. CBS-1 TO CBS-4 ON FRONT BASE RAIL. ALL EXPOSED EDGES DEBURRED, NO SHARP CORNERS.",
         "13. MATERIAL ORDER (4 STANDS): 8 x 6.5 m SHS 40x40x2 DURAGAL (INCL. 1 SPARE), 1 x 6.5 m EA 40x40x5.",
     ], h=2.4, bold_first=True, spacing=1.75)
@@ -587,7 +575,7 @@ def main():
         fill_title_block(lay, {
             **common, "DRAWING_NUMBER": name, "DRAWING_SUBTITLE": subtitle,
             "REFERENCE_DRAWING_NUMBER2": f"{DRG_PREFIX}{ref_num}", "REFERENCE_DRAWING_DESCRIPTION2": ref_desc,
-        }, qa_insert=(AREA[2] - 86, 84.0))
+        })
         fn(Sheet(lay), items)
         names.append(name)
 
